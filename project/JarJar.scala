@@ -8,6 +8,13 @@ import java.io._
 
 import sbt._
 
+/**
+ * Note that this calls JarJar classes directly through reflection, and
+ * therefore you can run into horrible evil since you are bypassing the
+ * null safety checks:
+ *
+ * https://github.com/pantsbuild/jarjar/issues/24
+ */
 object JarJar {
   sealed abstract class JarJarConfig {
     def toPatternElement: PatternElement
@@ -26,6 +33,13 @@ object JarJar {
         val keep = new jarjar.Keep
         keep.setPattern(pattern)
         keep
+      }
+    }
+    case class Zap(pattern: String) extends JarJarConfig {
+      def toPatternElement: PatternElement = {
+        val zap = new jarjar.Zap
+        zap.setPattern(pattern)
+        zap
       }
     }
   }
@@ -54,11 +68,16 @@ object JarJar {
     constructor.newInstance(patterns, Boolean.box(verbose), Boolean.box(skipManifest)).asInstanceOf[JarProcessor]
   }
 
-  def apply(in: Iterator[Entry], outdir: File,
-            config: Seq[JarJarConfig], verbose: Boolean = false): Seq[File] = {
+  def apply(in: Iterator[Entry],
+            outdir: File,
+            config: Seq[JarJarConfig],
+            verbose: Boolean,
+            log: Logger
+           ): Seq[File] = {
     val patterns = config.map(_.toPatternElement).asJava
     val processor = newMainProcessor(patterns, verbose, false)
     def process(e: Entry): Option[File] = {
+      log.debug(s"jarjar.process: entry = $e")
       val struct = new EntryStruct()
       struct.name = e.name
       struct.time = e.time
@@ -80,15 +99,6 @@ object JarJar {
       else None
     }
     val processed = in.flatMap(entry => process(entry)).toSet
-    val getter = processor.getClass.getDeclaredMethod("getExcludes")
-    getter.setAccessible(true)
-    val excludes = getter.invoke(processor).asInstanceOf[java.util.Set[String]].asScala
-    val excluded = excludes.map { name =>
-      val f: File = outdir / name
-      if(f.exists && !f.delete())
-        throw new IOException("Failed to delete excluded file $f")
-      f
-    }
-    (processed -- excluded).toSeq
+    (processed).toSeq
   }
 }
