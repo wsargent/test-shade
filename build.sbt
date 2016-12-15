@@ -17,7 +17,7 @@ lazy val `example-netty` = project.in(file("example-netty"))
   .settings(disablePublishing)
   .settings(
     libraryDependencies ++= netty,
-    name := "play-ws-netty"
+    name := "example-netty"
   )
 
 def excludeNetty(module: ModuleID): ModuleID =
@@ -26,11 +26,7 @@ def excludeNetty(module: ModuleID): ModuleID =
 lazy val `example-netty-embedded` = Project("example-netty-embedded", file(".") / "target" / "example-netty-embedded-src-dummy")
   .settings(disablePublishing)
   .settings(
-    inThisBuild(List(
-      organization := "com.example",
-      scalaVersion := "2.12.1"
-    )),
-    name := "play-ws-netty-embedded",
+    name := "example-netty-embedded",
     // There is nothing to compile for this project. Instead we use the compile task to create
     // shaded versions of repl-jline and jline.jar. dist/mkBin puts all of quick/repl,
     // quick/repl-jline and quick/repl-jline-shaded on the classpath for quick/bin scripts.
@@ -55,8 +51,7 @@ lazy val `example-netty-embedded` = Project("example-netty-embedded", file(".") 
       }
       import JarJar.JarJarConfig._
       val config: Seq[JarJar.JarJarConfig] = Seq(
-        Rule("io.netty.**", "example.netty.@1"),
-        Keep("example.**")
+        Rule("io.netty.**", "example.netty.@1")
       )
       val outdir = (classDirectory in Compile).value
       JarJar(inputs, outdir, config, verbose = false, log)
